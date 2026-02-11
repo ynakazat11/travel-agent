@@ -1,0 +1,31 @@
+{
+  "valuations": [
+    {"program": "chase_ur", "cpp": "2.05", "source_date": "2025-01-01"},
+    {"program": "amex_mr", "cpp": "2.00", "source_date": "2025-01-01"},
+    {"program": "citi_ty", "cpp": "1.80", "source_date": "2025-01-01"},
+    {"program": "capital_one_miles", "cpp": "1.85", "source_date": "2025-01-01"},
+    {"program": "bilt_rewards", "cpp": "2.05", "source_date": "2025-01-01"},
+    {"program": "united_mileageplus", "cpp": "1.35", "source_date": "2025-01-01"},
+    {"program": "american_airlines_aadvantage", "cpp": "1.77", "source_date": "2025-01-01"},
+    {"program": "delta_skymiles", "cpp": "1.20", "source_date": "2025-01-01"},
+    {"program": "southwest_rapid_rewards", "cpp": "1.50", "source_date": "2025-01-01"},
+    {"program": "alaska_mileage_plan", "cpp": "1.80", "source_date": "2025-01-01"},
+    {"program": "jetblue_trueblue", "cpp": "1.30", "source_date": "2025-01-01"},
+    {"program": "british_airways_avios", "cpp": "1.50", "source_date": "2025-01-01"},
+    {"program": "air_france_flying_blue", "cpp": "1.35", "source_date": "2025-01-01"},
+    {"program": "air_canada_aeroplan", "cpp": "1.55", "source_date": "2025-01-01"},
+    {"program": "singapore_krisflyer", "cpp": "1.30", "source_date": "2025-01-01"},
+    {"program": "emirates_skywards", "cpp": "1.30", "source_date": "2025-01-01"},
+    {"program": "turkish_miles_smiles", "cpp": "1.40", "source_date": "2025-01-01"},
+    {"program": "virgin_atlantic_flying_club", "cpp": "1.50", "source_date": "2025-01-01"},
+    {"program": "cathay_asia_miles", "cpp": "1.50", "source_date": "2025-01-01"},
+    {"program": "avianca_lifemiles", "cpp": "1.70", "source_date": "2025-01-01"},
+    {"program": "thai_airways_royal_orchid", "cpp": "1.10", "source_date": "2025-01-01"},
+    {"program": "world_of_hyatt", "cpp": "2.30", "source_date": "2025-01-01"},
+    {"program": "marriott_bonvoy", "cpp": "0.84", "source_date": "2025-01-01"},
+    {"program": "hilton_honors", "cpp": "0.60", "source_date": "2025-01-01"},
+    {"program": "ihg_rewards", "cpp": "0.50", "source_date": "2025-01-01"},
+    {"program": "wyndham_rewards", "cpp": "0.90", "source_date": "2025-01-01"},
+    {"program": "choice_privileges", "cpp": "0.60", "source_date": "2025-01-01"}
+  ]
+}

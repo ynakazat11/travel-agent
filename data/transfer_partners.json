@@ -1,0 +1,368 @@
+{
+  "partners": [
+    {
+      "source_program": "chase_ur",
+      "destination_program": "united_mileageplus",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "southwest_rapid_rewards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "british_airways_avios",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "air_france_flying_blue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "singapore_krisflyer",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 24
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "world_of_hyatt",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "ihg_rewards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "marriott_bonvoy",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "air_canada_aeroplan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "emirates_skywards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "chase_ur",
+      "destination_program": "virgin_atlantic_flying_club",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "delta_skymiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "british_airways_avios",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "air_france_flying_blue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "singapore_krisflyer",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 24
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "emirates_skywards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "virgin_atlantic_flying_club",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "hilton_honors",
+      "ratio_from": 1,
+      "ratio_to": 2,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "marriott_bonvoy",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "air_canada_aeroplan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "alaska_mileage_plan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "jetblue_trueblue",
+      "ratio_from": 250,
+      "ratio_to": 200,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "amex_mr",
+      "destination_program": "cathay_asia_miles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "turkish_miles_smiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "air_france_flying_blue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "singapore_krisflyer",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "emirates_skywards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "virgin_atlantic_flying_club",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "jetblue_trueblue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "cathay_asia_miles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "avianca_lifemiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "citi_ty",
+      "destination_program": "thai_airways_royal_orchid",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "air_canada_aeroplan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "turkish_miles_smiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "british_airways_avios",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "air_france_flying_blue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "emirates_skywards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "singapore_krisflyer",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "avianca_lifemiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "wyndham_rewards",
+      "ratio_from": 1,
+      "ratio_to": 2,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "capital_one_miles",
+      "destination_program": "choice_privileges",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "american_airlines_aadvantage",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "united_mileageplus",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "air_canada_aeroplan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "alaska_mileage_plan",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "british_airways_avios",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "air_france_flying_blue",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "emirates_skywards",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "turkish_miles_smiles",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "virgin_atlantic_flying_club",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "singapore_krisflyer",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    },
+    {
+      "source_program": "bilt_rewards",
+      "destination_program": "world_of_hyatt",
+      "ratio_from": 1,
+      "ratio_to": 1,
+      "transfer_time_hours": 0
+    }
+  ]
+}

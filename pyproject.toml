@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "travel-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=0.40.0",
+  "amadeus>=9.0.0",
+  "pydantic>=2.0",
+  "pydantic-settings>=2.0",
+  "rich>=13.0",
+  "httpx>=0.27",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-mock", "mypy"]
+
+[project.scripts]
+travel-agent = "travel_agent.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
