@@ -1,10 +1,11 @@
 """User profile for persisting points balances and stable preferences."""
 
+import logging
 import tomllib
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from travel_agent.models.points import ISSUER_TO_PROGRAM, Issuer, PointsBalance
 from travel_agent.models.preferences import (
@@ -14,6 +15,8 @@ from travel_agent.models.preferences import (
 )
 
 DEFAULT_PROFILE_PATH = Path.home() / ".config" / "travel-agent" / "profile.toml"
+
+logger = logging.getLogger(__name__)
 
 
 class ProfilePreferences(BaseModel):
@@ -71,15 +74,19 @@ class UserProfile(BaseModel):
 def load_profile(path: Path = DEFAULT_PROFILE_PATH) -> UserProfile | None:
     if not path.exists():
         return None
-    raw = path.read_text(encoding="utf-8")
-    data: dict[str, Any] = tomllib.loads(raw)
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data: dict[str, Any] = tomllib.loads(raw)
+        prefs = ProfilePreferences(**data.get("preferences", {}))
+        points = ProfilePoints(**data.get("points", {}))
+        return UserProfile(preferences=prefs, points=points)
+    except (tomllib.TOMLDecodeError, ValidationError, ValueError, KeyError) as exc:
+        logger.warning("Failed to load profile from %s: %s", path, exc)
+        return None
 
-    prefs_data = data.get("preferences", {})
-    points_data = data.get("points", {})
 
-    prefs = ProfilePreferences(**prefs_data)
-    points = ProfilePoints(**points_data)
-    return UserProfile(preferences=prefs, points=points)
+def _toml_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def save_profile(profile: UserProfile, path: Path = DEFAULT_PROFILE_PATH) -> Path:
@@ -87,12 +94,13 @@ def save_profile(profile: UserProfile, path: Path = DEFAULT_PROFILE_PATH) -> Pat
 
     p = profile.preferences
     pt = profile.points
+    origin = _toml_escape(p.origin_airport)
 
     content = f"""\
 # Travel Points Planner — User Profile
 
 [preferences]
-origin_airport = "{p.origin_airport}"
+origin_airport = "{origin}"
 num_travelers = {p.num_travelers}
 flight_time_preference = "{p.flight_time_preference.value}"    # morning | afternoon | evening | any
 accommodation_tier = "{p.accommodation_tier.value}"        # budget | midrange | upscale | luxury

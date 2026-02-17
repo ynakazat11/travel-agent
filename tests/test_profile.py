@@ -95,6 +95,29 @@ class TestSaveLoadRoundtrip:
         save_profile(profile, path)
         assert path.exists()
 
+    def test_malformed_toml_returns_none(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad.toml"
+        path.write_text("this is not [valid toml =", encoding="utf-8")
+        assert load_profile(path) is None
+
+    def test_invalid_enum_returns_none(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad_enum.toml"
+        path.write_text(
+            '[preferences]\npoints_strategy = "ALL_POINTS"\n',
+            encoding="utf-8",
+        )
+        assert load_profile(path) is None
+
+    def test_save_roundtrip_with_special_chars(self, tmp_path: Path) -> None:
+        profile = UserProfile(
+            preferences=ProfilePreferences(origin_airport='S"FO'),
+        )
+        path = tmp_path / "profile.toml"
+        save_profile(profile, path)
+        loaded = load_profile(path)
+        assert loaded is not None
+        assert loaded.preferences.origin_airport == 'S"FO'
+
     def test_toml_content_has_comments(self, tmp_path: Path) -> None:
         profile = UserProfile(
             preferences=ProfilePreferences(origin_airport="JFK"),
