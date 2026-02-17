@@ -2,10 +2,12 @@
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.status import Status
 
 from travel_agent.agent.loop import run_agent_turn
@@ -18,13 +20,24 @@ from travel_agent.display.prompts import (
     prompt_fine_tune_menu,
     prompt_plan_selection,
     prompt_points_balances,
+    prompt_profile_setup,
     prompt_save_guide,
+    show_loaded_profile,
 )
 from travel_agent.display.tables import (
     render_flight_card,
     render_hotel_card,
     render_points_breakdown,
     render_trip_plans_table,
+)
+from travel_agent.models.preferences import TravelPreferences
+from travel_agent.models.profile import (
+    DEFAULT_PROFILE_PATH,
+    ProfilePoints,
+    ProfilePreferences,
+    UserProfile,
+    load_profile,
+    save_profile,
 )
 from travel_agent.models.session import ConversationSession, SessionPhase
 from travel_agent.models.travel import TripPlan
@@ -41,11 +54,31 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use mock Amadeus data (no API calls required)",
     )
+    parser.add_argument(
+        "--setup-profile",
+        action="store_true",
+        help="Run the interactive profile setup wizard",
+    )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        default=None,
+        help="Path to a custom profile TOML file",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    profile_path: Path = args.profile or DEFAULT_PROFILE_PATH
+
+    # --- Early exit: --setup-profile ---
+    if args.setup_profile:
+        existing = load_profile(profile_path)
+        profile = prompt_profile_setup(existing)
+        saved_path = save_profile(profile, profile_path)
+        console.print(f"\n[green]Profile saved to {saved_path}[/green]")
+        return
 
     if not args.mock and not settings.anthropic_api_key:
         console.print("[red]Error: ANTHROPIC_API_KEY not set. Copy .env.example to .env and fill it in.[/red]")
@@ -60,8 +93,17 @@ def main() -> None:
         )
     )
 
-    # --- Phase: POINTS_INPUT ---
-    balances = prompt_points_balances()
+    # --- Load profile ---
+    profile = load_profile(profile_path)
+    profile_loaded = False
+
+    if profile and profile.has_points:
+        balances = profile.points.to_balances()
+        show_loaded_profile(balances, profile.preferences)
+        profile_loaded = True
+    else:
+        # --- Phase: POINTS_INPUT (no profile) ---
+        balances = prompt_points_balances()
 
     # Initialize clients and session
     amadeus = AmadeusClient(mock=args.mock)
@@ -70,11 +112,26 @@ def main() -> None:
 
     session = ConversationSession()
     session.points_balances = balances
+
+    if profile_loaded and profile is not None:
+        session.profile_loaded = True
+        p = profile.preferences
+        session.preferences = TravelPreferences(
+            origin_airport=p.origin_airport,
+            num_travelers=p.num_travelers,
+            flight_time_preference=p.flight_time_preference,
+            accommodation_tier=p.accommodation_tier,
+            points_strategy=p.points_strategy,
+        )
+
     session.advance_phase(SessionPhase.PREFERENCE_GATHERING)
 
     # --- Phase: PREFERENCE_GATHERING ---
     console.print()
-    console.print("[bold cyan]Great! Now let's find your perfect trip.[/bold cyan]")
+    if profile_loaded:
+        console.print("[bold cyan]Profile loaded! Just tell me where and when.[/bold cyan]")
+    else:
+        console.print("[bold cyan]Great! Now let's find your perfect trip.[/bold cyan]")
     console.print("[dim]Tell me where you'd like to go and I'll handle the rest.[/dim]\n")
 
     while session.phase == SessionPhase.PREFERENCE_GATHERING:
@@ -153,9 +210,41 @@ def main() -> None:
 
         session.advance_phase(SessionPhase.COMPLETE)
 
+    # --- Offer to save profile if none existed ---
+    if not profile_loaded and profile is None:
+        _offer_profile_save(session, profile_path)
+
     console.print()
     console.print(Panel("[bold green]Happy travels![/bold green]", border_style="green"))
     amadeus.close()
+
+
+def _offer_profile_save(session: ConversationSession, profile_path: Path) -> None:
+    """After a successful run without a profile, offer to save one."""
+    console.print()
+    raw = Prompt.ask(
+        "Save your points & preferences for next time? [Y/n]", default="y"
+    )
+    if raw.lower().startswith("n"):
+        return
+
+    p = session.preferences
+    pts_map: dict[str, int] = {}
+    for b in session.points_balances:
+        pts_map[b.issuer.value] = b.balance
+
+    profile = UserProfile(
+        preferences=ProfilePreferences(
+            origin_airport=p.origin_airport,
+            num_travelers=p.num_travelers,
+            flight_time_preference=p.flight_time_preference,
+            accommodation_tier=p.accommodation_tier,
+            points_strategy=p.points_strategy,
+        ),
+        points=ProfilePoints(**pts_map),
+    )
+    saved_path = save_profile(profile, profile_path)
+    console.print(f"[green]Profile saved to {saved_path}[/green]")
 
 
 def _build_fine_tune_prompt(choice: str, plan: TripPlan) -> str:

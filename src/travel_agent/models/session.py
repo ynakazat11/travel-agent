@@ -33,6 +33,7 @@ class ConversationSession(BaseModel):
     current_trip_plans: list[TripPlan] = Field(default_factory=list)
     selected_plan: TripPlan | None = None
     fine_tune_state: FineTuneState = Field(default_factory=FineTuneState)
+    profile_loaded: bool = False
 
     def add_message(self, role: str, content: Any) -> None:
         self.conversation_history.append({"role": role, "content": content})

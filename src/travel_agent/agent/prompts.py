@@ -47,6 +47,20 @@ def _phase_instructions(session: ConversationSession) -> str:
     phase = session.phase
 
     if phase == SessionPhase.PREFERENCE_GATHERING:
+        if session.profile_loaded:
+            p = session.preferences
+            return (
+                "The user has a saved profile with these defaults:\n"
+                f"  - Origin airport: {p.origin_airport}\n"
+                f"  - Travelers: {p.num_travelers}\n"
+                f"  - Flight time: {p.flight_time_preference.value}\n"
+                f"  - Accommodation: {p.accommodation_tier.value}\n"
+                f"  - Points strategy: {p.points_strategy.value}\n\n"
+                "Do NOT re-ask about these. Focus on destination, dates, and flexibility. "
+                "The user can override any default by mentioning it. "
+                "When you have destination and dates, call mark_preferences_complete "
+                "including ALL fields (use the defaults above for anything the user didn't override)."
+            )
         return (
             "Gather travel preferences through friendly conversation. You need: "
             "destination, origin airport, departure/return dates, date flexibility (0–14 days), "
