@@ -1,14 +1,16 @@
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Load .env into os.environ before Settings reads env vars
+load_dotenv(_PROJECT_ROOT / ".env", override=True)
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(extra="ignore")
 
     anthropic_api_key: str = ""
     amadeus_client_id: str = ""
