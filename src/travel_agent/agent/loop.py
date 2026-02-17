@@ -111,21 +111,24 @@ def _handle_phase_transition(
     tool_executor: ToolExecutor,
 ) -> TripPlan | None:
     if tool_name == "mark_preferences_complete":
+        existing = session.preferences
         prefs = TravelPreferences(
             destination_query=tool_input.get("destination_query", ""),
             resolved_destination=tool_input.get("resolved_destination", ""),
-            origin_airport=tool_input.get("origin_airport", ""),
+            origin_airport=tool_input.get("origin_airport", "") or existing.origin_airport,
             departure_date=tool_input.get("departure_date", ""),
             return_date=tool_input.get("return_date", ""),
             date_flexibility_days=tool_input.get("date_flexibility_days", 0),
-            num_travelers=tool_input.get("num_travelers", 1),
+            num_travelers=tool_input.get("num_travelers", 0) or existing.num_travelers,
             flight_time_preference=FlightTimePreference(
-                tool_input.get("flight_time_preference", "any")
+                tool_input.get("flight_time_preference", "") or existing.flight_time_preference.value
             ),
             accommodation_tier=AccommodationTier(
-                tool_input.get("accommodation_tier", "midrange")
+                tool_input.get("accommodation_tier", "") or existing.accommodation_tier.value
             ),
-            points_strategy=PointsStrategy(tool_input.get("points_strategy", "MIXED_OK")),
+            points_strategy=PointsStrategy(
+                tool_input.get("points_strategy", "") or existing.points_strategy.value
+            ),
         )
         session.preferences = prefs
         session.advance_phase(SessionPhase.SEARCHING)

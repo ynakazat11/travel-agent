@@ -1,4 +1,4 @@
-"""Rich prompts for points input and fine-tune menus."""
+"""Rich prompts for points input, profile setup, and fine-tune menus."""
 
 from rich.console import Console
 from rich.panel import Panel
@@ -7,6 +7,12 @@ from rich.table import Table
 from rich.text import Text
 
 from travel_agent.models.points import ISSUER_TO_PROGRAM, Issuer, PointsBalance
+from travel_agent.models.preferences import (
+    AccommodationTier,
+    FlightTimePreference,
+    PointsStrategy,
+)
+from travel_agent.models.profile import ProfilePoints, ProfilePreferences, UserProfile
 from travel_agent.models.travel import TripPlan
 
 console = Console()
@@ -126,6 +132,145 @@ def prompt_alternative_selection(num_items: int, kind: str = "option") -> int | 
         return int(raw)
     except ValueError:
         return None
+
+
+def prompt_profile_setup(existing: UserProfile | None = None) -> UserProfile:
+    """Interactive wizard to create or update a user profile."""
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]Profile Setup[/bold cyan]\n\n"
+            "Save your points balances and stable preferences\n"
+            "so you don't have to re-enter them every session.",
+            title="Profile Wizard",
+            border_style="cyan",
+        )
+    )
+
+    defaults = existing or UserProfile()
+    prefs = defaults.preferences
+    pts = defaults.points
+
+    # --- Preferences ---
+    console.print("\n[bold]Travel Preferences[/bold]\n")
+
+    origin = Prompt.ask(
+        "  Home airport (IATA code)",
+        default=prefs.origin_airport or "SFO",
+    ).upper().strip()
+
+    while True:
+        try:
+            raw = Prompt.ask("  Default number of travelers", default=str(prefs.num_travelers))
+            num_travelers = int(raw)
+            if num_travelers < 1:
+                console.print("  [red]Must be at least 1.[/red]")
+                continue
+            break
+        except ValueError:
+            console.print("  [red]Please enter a number.[/red]")
+
+    flight_time = Prompt.ask(
+        "  Flight time preference",
+        choices=["morning", "afternoon", "evening", "any"],
+        default=prefs.flight_time_preference.value,
+    )
+
+    tier = Prompt.ask(
+        "  Accommodation tier",
+        choices=["budget", "midrange", "upscale", "luxury"],
+        default=prefs.accommodation_tier.value,
+    )
+
+    strategy = Prompt.ask(
+        "  Points strategy",
+        choices=["POINTS_ONLY", "MIXED_OK"],
+        default=prefs.points_strategy.value,
+    )
+
+    # --- Points ---
+    console.print("\n[bold]Points Balances[/bold]\n")
+
+    issuer_labels = [
+        ("chase", "Chase Ultimate Rewards (UR)"),
+        ("amex", "Amex Membership Rewards (MR)"),
+        ("citi", "Citi ThankYou Points (TY)"),
+        ("capital_one", "Capital One Miles"),
+        ("bilt", "Bilt Rewards"),
+    ]
+
+    points_values: dict[str, int] = {}
+    for field_name, label in issuer_labels:
+        current = getattr(pts, field_name)
+        while True:
+            try:
+                raw_val = Prompt.ask(f"  [bold]{label}[/bold]", default=f"{current:,}")
+                val = int(raw_val.replace(",", "").replace(" ", ""))
+                if val < 0:
+                    console.print("  [red]Must be 0 or greater.[/red]")
+                    continue
+                points_values[field_name] = val
+                break
+            except ValueError:
+                console.print("  [red]Please enter a number (e.g. 75000).[/red]")
+
+    profile = UserProfile(
+        preferences=ProfilePreferences(
+            origin_airport=origin,
+            num_travelers=num_travelers,
+            flight_time_preference=FlightTimePreference(flight_time),
+            accommodation_tier=AccommodationTier(tier),
+            points_strategy=PointsStrategy(strategy),
+        ),
+        points=ProfilePoints(**points_values),
+    )
+
+    # Show summary for confirmation
+    show_loaded_profile(profile.points.to_balances(), profile.preferences)
+
+    confirmed = Prompt.ask("Save this profile? [Y/n]", default="y")
+    if confirmed.lower().startswith("n"):
+        return prompt_profile_setup(existing)
+
+    return profile
+
+
+def show_loaded_profile(
+    balances: list[PointsBalance], prefs: ProfilePreferences
+) -> None:
+    """Print a summary table of loaded profile data."""
+    console.print()
+
+    # Preferences summary
+    pref_table = Table(
+        title="Loaded Profile — Preferences",
+        header_style="bold magenta",
+        border_style="dim",
+    )
+    pref_table.add_column("Setting")
+    pref_table.add_column("Value")
+    pref_table.add_row("Origin Airport", prefs.origin_airport)
+    pref_table.add_row("Travelers", str(prefs.num_travelers))
+    pref_table.add_row("Flight Time", prefs.flight_time_preference.value)
+    pref_table.add_row("Accommodation", prefs.accommodation_tier.value)
+    pref_table.add_row("Points Strategy", prefs.points_strategy.value)
+    console.print(pref_table)
+
+    # Points summary
+    pts_table = Table(
+        title="Loaded Profile — Points",
+        header_style="bold magenta",
+        border_style="dim",
+    )
+    pts_table.add_column("Issuer")
+    pts_table.add_column("Program")
+    pts_table.add_column("Balance", justify="right")
+
+    for b in balances:
+        pts_table.add_row(b.issuer.value.upper(), b.program.value, f"{b.balance:,}")
+
+    console.print(pts_table)
+    console.print()
 
 
 def prompt_save_guide(destination: str) -> str | None:

@@ -17,6 +17,7 @@ A CLI-based agentic travel planner that optimizes award trips across your credit
 - **Booking guide** — step-by-step transfer and redemption instructions, saveable to `~/Downloads/`
 - **Rich terminal UI** — tables, panels, spinners throughout
 - **`--mock` mode** — full flow with fixture data, no API keys required
+- **Saved profile** — save points balances and preferences once, auto-loaded every session
 
 ---
 
@@ -65,12 +66,61 @@ python -m travel_agent.main --mock
 
 ---
 
+## User Profile
+
+You can save your points balances and stable preferences (home airport, party size, etc.) so they auto-load every session. The agent will skip re-asking about these and jump straight to destination and dates.
+
+**Default location:** `~/.config/travel-agent/profile.toml`
+
+### Set up a profile
+
+Run the interactive wizard:
+
+```bash
+./run.sh --setup-profile
+```
+
+Or create the file manually:
+
+```toml
+# ~/.config/travel-agent/profile.toml
+
+[preferences]
+origin_airport = "SFO"
+num_travelers = 2
+flight_time_preference = "morning"    # morning | afternoon | evening | any
+accommodation_tier = "upscale"        # budget | midrange | upscale | luxury
+points_strategy = "MIXED_OK"          # POINTS_ONLY | MIXED_OK
+
+[points]
+chase = 120000
+amex = 85000
+citi = 0
+capital_one = 60000
+bilt = 45000
+```
+
+### Custom profile path
+
+```bash
+./run.sh --profile ~/my-other-profile.toml
+./run.sh --setup-profile --profile ~/work-travel.toml
+```
+
+### First run without a profile
+
+If no profile exists, the app works exactly as before (prompts for everything). After a successful run it will offer to save your settings for next time.
+
+You can override any saved default during conversation (e.g., "this time 4 travelers") — the agent respects in-session overrides.
+
+---
+
 ## How it works
 
 The app runs a 7-phase conversation state machine:
 
 ```
-POINTS_INPUT        Rich prompts collect balances for all 5 issuers
+POINTS_INPUT        Rich prompts collect balances (skipped if profile loaded)
        ↓
 PREFERENCE_GATHERING  Claude gathers destination, dates, travelers, preferences
        ↓
@@ -131,7 +181,7 @@ travel-agent/
 .venv/bin/mypy src/
 ```
 
-40 tests, mypy strict, Python 3.11+.
+55 tests, mypy strict, Python 3.11+.
 
 ---
 
@@ -151,6 +201,6 @@ travel-agent/
 
 - `.env` is in `.gitignore` — never committed
 - All secrets flow through `config.py` (pydantic-settings) — no scattered `os.getenv()` calls
-- Points balances are in-memory only — never written to disk
+- User profile (`~/.config/travel-agent/profile.toml`) is outside the repo — never committed
 - Booking guides save to `~/Downloads/` — outside the repo directory
 - Amadeus sandbox is free; use sandbox credentials only in `.env`
