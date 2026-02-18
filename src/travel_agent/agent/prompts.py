@@ -1,5 +1,6 @@
 """Build dynamic system prompt based on current session state."""
 
+from travel_agent.models.preferences import PointsStrategy
 from travel_agent.models.session import ConversationSession, SessionPhase
 
 
@@ -72,9 +73,25 @@ def _phase_instructions(session: ConversationSession) -> str:
 
     if phase == SessionPhase.SEARCHING:
         prefs = session.preferences
+        display_dest = prefs.destination_display_name or prefs.destination_query
+        iata_dest = prefs.resolved_destination
+
+        if prefs.points_strategy == PointsStrategy.points_only:
+            strategy_guidance = (
+                "Prefer high-CPP options and diverse issuer usage."
+            )
+        else:
+            strategy_guidance = (
+                "Location match is more important than points optimization. "
+                f"The user wants to stay in or near {display_dest}, not just the nearest major city. "
+                "When searching hotels, pass the location_query parameter with the user's "
+                "actual destination so results can be evaluated for location relevance. "
+                "Balance location accuracy with reasonable point redemptions."
+            )
+
         return (
             f"Search autonomously for the best award trip options. "
-            f"Destination: {prefs.resolved_destination or prefs.destination_query}. "
+            f"Destination: {display_dest} (IATA: {iata_dest or 'unresolved'}). "
             f"Origin: {prefs.origin_airport}. "
             f"Dates: {prefs.departure_date} → {prefs.return_date} "
             f"(±{prefs.date_flexibility_days} days flexibility). "
@@ -83,7 +100,7 @@ def _phase_instructions(session: ConversationSession) -> str:
             "Chain tools: resolve_destination (if needed) → search_flights → search_hotels "
             "→ lookup_transfer_options → calculate_trip_cost. "
             "Build 3–5 TripPlans with different flight/hotel/issuer combinations. "
-            "Prefer high-CPP options and diverse issuer usage."
+            f"{strategy_guidance}"
         )
 
     if phase == SessionPhase.FINE_TUNING:

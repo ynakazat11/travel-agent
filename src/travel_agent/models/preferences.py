@@ -25,6 +25,7 @@ class AccommodationTier(str, Enum):
 class TravelPreferences(BaseModel):
     destination_query: str = ""
     resolved_destination: str = ""   # IATA city/airport code
+    destination_display_name: str = ""  # Human-readable place name, e.g. "Sedona, AZ"
     points_strategy: PointsStrategy = PointsStrategy.mixed_ok
     departure_date: str = ""         # ISO 8601 date YYYY-MM-DD
     return_date: str = ""            # ISO 8601 date YYYY-MM-DD
