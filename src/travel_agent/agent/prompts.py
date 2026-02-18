@@ -4,6 +4,11 @@ from travel_agent.models.preferences import PointsStrategy
 from travel_agent.models.session import ConversationSession, SessionPhase
 
 
+def _sanitize_prompt_str(s: str, max_len: int = 100) -> str:
+    """Strip control characters and truncate user-supplied text for safe prompt interpolation."""
+    return s.replace("\n", " ").replace("\r", " ")[:max_len]
+
+
 def build_system_prompt(session: ConversationSession) -> str:
     balances_text = _format_balances(session)
     phase_instructions = _phase_instructions(session)
@@ -73,7 +78,9 @@ def _phase_instructions(session: ConversationSession) -> str:
 
     if phase == SessionPhase.SEARCHING:
         prefs = session.preferences
-        display_dest = prefs.destination_display_name or prefs.destination_query
+        display_dest = _sanitize_prompt_str(
+            prefs.destination_display_name or prefs.destination_query
+        )
         iata_dest = prefs.resolved_destination
 
         if prefs.points_strategy == PointsStrategy.points_only:

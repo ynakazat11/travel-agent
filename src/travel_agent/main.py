@@ -161,8 +161,7 @@ def main() -> None:
                     return
                 with Status("[dim]Thinking…[/dim]", console=console) as status:
                     run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
-        else:
-            # "edit" — let user type a correction
+        elif answer == "edit":
             try:
                 correction = console.input("[bold green]What should I change?[/bold green] ")
             except (EOFError, KeyboardInterrupt):
@@ -170,11 +169,21 @@ def main() -> None:
                 return
             with Status("[dim]Updating preferences…[/dim]", console=console) as status:
                 run_agent_turn(session, tool_executor, user_input=correction, spinner_status=status)
+            # Keep collecting input until the agent re-triggers confirmation
+            while session.phase == SessionPhase.CONFIRM_PREFERENCES:
+                try:
+                    user_input = console.input("[bold green]You:[/bold green] ")
+                except (EOFError, KeyboardInterrupt):
+                    console.print("\n[yellow]Goodbye![/yellow]")
+                    return
+                with Status("[dim]Thinking…[/dim]", console=console) as status:
+                    run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
 
     # --- Phase: SEARCHING ---
-    console.print()
-    with Status("[bold cyan]Searching for the best award options…[/bold cyan]", console=console) as status:
-        run_agent_turn(session, tool_executor, spinner_status=status)
+    if session.phase == SessionPhase.SEARCHING:
+        console.print()
+        with Status("[bold cyan]Searching for the best award options…[/bold cyan]", console=console) as status:
+            run_agent_turn(session, tool_executor, spinner_status=status)
 
     # Loop: OPTIONS_PRESENTED → FINE_TUNING → FINALIZING
     while session.phase not in (SessionPhase.FINALIZING, SessionPhase.COMPLETE):

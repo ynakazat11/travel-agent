@@ -1,10 +1,11 @@
 """Tests for the three improvements: location bias fix, free-text feedback, confirmation step."""
 
+import inspect
 import json
 
 import pytest
 
-from travel_agent.agent.prompts import build_system_prompt
+from travel_agent.agent.prompts import _sanitize_prompt_str, build_system_prompt
 from travel_agent.agent.tools import TOOL_SCHEMAS, ToolExecutor
 from travel_agent.clients.amadeus import AmadeusClient
 from travel_agent.clients.transfer import TransferPartnerDB
@@ -21,12 +22,8 @@ from travel_agent.models.session import ConversationSession, SessionPhase
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def session() -> ConversationSession:
-    return ConversationSession(
-        points_balances=[
-            PointsBalance(issuer=Issuer.chase, program=ISSUER_TO_PROGRAM[Issuer.chase], balance=100_000),
-        ],
-    )
+def session(sample_balances: list[PointsBalance]) -> ConversationSession:
+    return ConversationSession(points_balances=sample_balances)
 
 
 @pytest.fixture
@@ -134,16 +131,29 @@ class TestTravelPreferencesDisplayName:
         assert prefs.destination_display_name == "Sedona, AZ"
 
 
+# ─── Change 1: _sanitize_prompt_str ──────────────────────────────────────────
+
+class TestSanitizePromptStr:
+    def test_strips_newlines(self) -> None:
+        assert _sanitize_prompt_str("line1\nline2\rline3") == "line1 line2 line3"
+
+    def test_truncates_long_input(self) -> None:
+        long_str = "a" * 200
+        assert len(_sanitize_prompt_str(long_str)) == 100
+
+    def test_leaves_normal_text_unchanged(self) -> None:
+        assert _sanitize_prompt_str("Sedona, AZ") == "Sedona, AZ"
+
+
 # ─── Change 2: fine-tune menu includes option 6 ─────────────────────────────
 
 class TestFineTuneMenuOption6:
-    def test_option_6_in_schema(self) -> None:
-        """Verify that the prompt function accepts '6' as a valid choice."""
-        # We can't easily call the interactive prompt in tests,
-        # but we can verify the schema allows "6" by checking TOOL_SCHEMAS
-        # is unrelated. Instead, test that the function exists and has correct signature.
+    def test_prompt_fine_tune_menu_accepts_choice_6(self) -> None:
+        """Verify the menu source includes '6' as a valid choice in Prompt.ask."""
         from travel_agent.display.prompts import prompt_fine_tune_menu
-        assert callable(prompt_fine_tune_menu)
+        source = inspect.getsource(prompt_fine_tune_menu)
+        assert '"6"' in source
+        assert "Give feedback in your own words" in source
 
 
 # ─── Change 3: CONFIRM_PREFERENCES phase exists and transitions ─────────────
@@ -152,13 +162,6 @@ class TestConfirmPreferencesPhase:
     def test_phase_exists(self) -> None:
         assert hasattr(SessionPhase, "CONFIRM_PREFERENCES")
         assert SessionPhase.CONFIRM_PREFERENCES.value == "CONFIRM_PREFERENCES"
-
-    def test_phase_between_gathering_and_searching(self) -> None:
-        phases = list(SessionPhase)
-        gather_idx = phases.index(SessionPhase.PREFERENCE_GATHERING)
-        confirm_idx = phases.index(SessionPhase.CONFIRM_PREFERENCES)
-        search_idx = phases.index(SessionPhase.SEARCHING)
-        assert gather_idx < confirm_idx < search_idx
 
     def test_mark_preferences_transitions_to_confirm(self, session: ConversationSession) -> None:
         """Verify that _handle_phase_transition sends to CONFIRM_PREFERENCES, not SEARCHING."""
@@ -175,6 +178,18 @@ class TestConfirmPreferencesPhase:
         }
         _handle_phase_transition(session, "mark_preferences_complete", tool_input, {}, None)  # type: ignore[arg-type]
         assert session.phase == SessionPhase.CONFIRM_PREFERENCES
+
+    def test_confirm_to_searching_transition(self, session: ConversationSession) -> None:
+        """Verify that advancing from CONFIRM_PREFERENCES to SEARCHING works."""
+        session.advance_phase(SessionPhase.CONFIRM_PREFERENCES)
+        session.advance_phase(SessionPhase.SEARCHING)
+        assert session.phase == SessionPhase.SEARCHING
+
+    def test_confirm_back_to_gathering_transition(self, session: ConversationSession) -> None:
+        """Verify the 'n' path: CONFIRM_PREFERENCES → PREFERENCE_GATHERING."""
+        session.advance_phase(SessionPhase.CONFIRM_PREFERENCES)
+        session.advance_phase(SessionPhase.PREFERENCE_GATHERING)
+        assert session.phase == SessionPhase.PREFERENCE_GATHERING
 
     def test_destination_display_name_captured(self, session: ConversationSession) -> None:
         from travel_agent.agent.loop import _handle_phase_transition

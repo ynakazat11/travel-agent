@@ -305,10 +305,13 @@ def prompt_confirm_preferences(prefs: TravelPreferences) -> str:
 
     raw = Prompt.ask(
         "Does this look right? [Y/n/edit]",
-        choices=["y", "n", "edit", "Y", "N"],
+        choices=["y", "n", "edit", "Y", "N", "Edit", "EDIT", "e", "E"],
         default="y",
     )
-    return raw.lower()
+    normalized = raw.strip().lower()
+    if normalized in ("e", "edit"):
+        return "edit"
+    return normalized
 
 
 def prompt_save_guide(destination: str) -> str | None:
