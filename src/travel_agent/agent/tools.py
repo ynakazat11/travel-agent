@@ -50,6 +50,13 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "check_in": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "check_out": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "num_travelers": {"type": "integer", "description": "Number of travelers", "default": 1},
+                "location_query": {
+                    "type": "string",
+                    "description": (
+                        "Natural-language location hint when the IATA code may not cover "
+                        "the desired area (e.g., 'Sedona, AZ')"
+                    ),
+                },
             },
             "required": ["city_code", "check_in", "check_out"],
         },
@@ -142,6 +149,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "properties": {
                 "destination_query": {"type": "string"},
                 "resolved_destination": {"type": "string", "description": "IATA city code"},
+                "destination_display_name": {
+                    "type": "string",
+                    "description": "Human-readable destination name, e.g. 'Sedona, AZ'",
+                },
                 "origin_airport": {"type": "string", "description": "IATA airport code"},
                 "departure_date": {"type": "string"},
                 "return_date": {"type": "string"},
@@ -246,10 +257,15 @@ class ToolExecutor:
         check_in: str,
         check_out: str,
         num_travelers: int = 1,
+        location_query: str = "",
     ) -> list[dict[str, Any]]:
         hotels = self._amadeus.search_hotels(city_code, check_in, check_out, num_travelers)
         self._last_hotels = hotels
-        return [_hotel_to_dict(i, h) for i, h in enumerate(hotels)]
+        results = [_hotel_to_dict(i, h) for i, h in enumerate(hotels)]
+        if location_query:
+            for r in results:
+                r["location_query"] = location_query
+        return results
 
     def _tool_lookup_transfer_options(
         self,

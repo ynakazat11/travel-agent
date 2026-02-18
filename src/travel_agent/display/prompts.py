@@ -11,6 +11,7 @@ from travel_agent.models.preferences import (
     AccommodationTier,
     FlightTimePreference,
     PointsStrategy,
+    TravelPreferences,
 )
 from travel_agent.models.profile import ProfilePoints, ProfilePreferences, UserProfile
 from travel_agent.models.travel import TripPlan
@@ -90,12 +91,13 @@ def prompt_fine_tune_menu(plan: TripPlan) -> str:
             "  [2] Swap hotel\n"
             "  [3] Change cabin class preference\n"
             "  [4] Adjust travel dates\n"
-            "  [5] Done — return to plan list\n",
+            "  [5] Done — return to plan list\n"
+            "  [6] Give feedback in your own words\n",
             title=f"Fine-Tuning: {plan.summary_label}",
             border_style="yellow",
         )
     )
-    choice = Prompt.ask("Select option", choices=["1", "2", "3", "4", "5"], default="5")
+    choice = Prompt.ask("Select option", choices=["1", "2", "3", "4", "5", "6"], default="5")
     return choice
 
 
@@ -271,6 +273,45 @@ def show_loaded_profile(
 
     console.print(pts_table)
     console.print()
+
+
+def prompt_confirm_preferences(prefs: TravelPreferences) -> str:
+    """Render a summary of captured preferences and ask user to confirm.
+
+    Returns "y", "n", or "edit".
+    """
+    display_dest = prefs.destination_display_name or prefs.destination_query
+    iata = prefs.resolved_destination
+
+    table = Table(
+        title="Trip Preferences Summary",
+        header_style="bold magenta",
+        border_style="dim",
+    )
+    table.add_column("Setting")
+    table.add_column("Value")
+    table.add_row("Destination", f"{display_dest} ({iata})" if iata else display_dest)
+    table.add_row("Origin", prefs.origin_airport)
+    table.add_row("Dates", f"{prefs.departure_date} → {prefs.return_date}")
+    table.add_row("Flexibility", f"±{prefs.date_flexibility_days} days")
+    table.add_row("Travelers", str(prefs.num_travelers))
+    table.add_row("Flight Time", prefs.flight_time_preference.value)
+    table.add_row("Accommodation", prefs.accommodation_tier.value)
+    table.add_row("Points Strategy", prefs.points_strategy.value)
+
+    console.print()
+    console.print(table)
+    console.print()
+
+    raw = Prompt.ask(
+        "Does this look right? [Y/n/edit]",
+        choices=["y", "n", "edit", "Y", "N", "Edit", "EDIT", "e", "E"],
+        default="y",
+    )
+    normalized = raw.strip().lower()
+    if normalized in ("e", "edit"):
+        return "edit"
+    return normalized
 
 
 def prompt_save_guide(destination: str) -> str | None:

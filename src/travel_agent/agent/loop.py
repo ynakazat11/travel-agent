@@ -115,6 +115,8 @@ def _handle_phase_transition(
         prefs = TravelPreferences(
             destination_query=tool_input.get("destination_query", ""),
             resolved_destination=tool_input.get("resolved_destination", ""),
+            destination_display_name=tool_input.get("destination_display_name", "")
+            or tool_input.get("destination_query", ""),
             origin_airport=tool_input.get("origin_airport", "") or existing.origin_airport,
             departure_date=tool_input.get("departure_date", ""),
             return_date=tool_input.get("return_date", ""),
@@ -131,7 +133,7 @@ def _handle_phase_transition(
             ),
         )
         session.preferences = prefs
-        session.advance_phase(SessionPhase.SEARCHING)
+        session.advance_phase(SessionPhase.CONFIRM_PREFERENCES)
         return None
 
     if tool_name == "calculate_trip_cost" and isinstance(result, dict) and "flight" in result:
