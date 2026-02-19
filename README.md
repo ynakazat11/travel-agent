@@ -13,8 +13,10 @@ A CLI-based agentic travel planner that optimizes award trips across your credit
 - **Transfer math** — computes exact source points needed per transfer ratio
 - **Bilt → AA differentiator** — surfaces Bilt Rewards as the only issuer with a 1:1 American Airlines transfer
 - **CPP rankings** — blended cents-per-point across flight + hotel for every plan
+- **Nonstop flight preference** — prefer direct flights; falls back to connections if none available
+- **Hotel fallback** — web search when Amadeus results don't match your accommodation tier (e.g., Sedona luxury)
 - **Fine-tuning** — swap flights, swap hotels, change cabin, adjust dates
-- **Booking guide** — step-by-step transfer and redemption instructions, saveable to `~/Downloads/`
+- **Booking guide** — step-by-step transfer and redemption instructions, auto-saved to `output/`
 - **Rich terminal UI** — tables, panels, spinners throughout
 - **`--mock` mode** — full flow with fixture data, no API keys required
 - **Saved profile** — save points balances and preferences once, auto-loaded every session
@@ -91,6 +93,7 @@ num_travelers = 2
 flight_time_preference = "morning"    # morning | afternoon | evening | any
 accommodation_tier = "upscale"        # budget | midrange | upscale | luxury
 points_strategy = "MIXED_OK"          # POINTS_ONLY | MIXED_OK
+nonstop_preferred = true
 
 [points]
 chase = 120000
@@ -124,6 +127,8 @@ POINTS_INPUT        Rich prompts collect balances (skipped if profile loaded)
        ↓
 PREFERENCE_GATHERING  Claude gathers destination, dates, travelers, preferences
        ↓
+CONFIRM_PREFERENCES User reviews and confirms preferences before search begins
+       ↓
 SEARCHING           Claude autonomously chains tools: resolve → flights → hotels
                     → transfer lookup → trip cost (3–5 plans assembled)
        ↓
@@ -133,7 +138,7 @@ FINE_TUNING         Swap flights or hotels; Claude fetches alternatives
        ↓
 FINALIZING          Selected plan displayed with full CPP breakdown
        ↓
-COMPLETE            Booking guide rendered; optionally saved to ~/Downloads/
+COMPLETE            Booking guide rendered and auto-saved to output/
 ```
 
 ### Claude Tools
@@ -142,7 +147,8 @@ COMPLETE            Booking guide rendered; optionally saved to ~/Downloads/
 |---|---|
 | `resolve_destination` | Vague description → IATA codes |
 | `search_flights` | Amadeus flight offers |
-| `search_hotels` | Amadeus hotel offers (2-step: city → offers) |
+| `search_hotels` | Amadeus hotel offers (by city code or geocode) |
+| `web_search_hotels` | Fallback web search when hotel results don't match tier |
 | `lookup_transfer_options` | Which issuers can cover a program + points needed |
 | `calculate_trip_cost` | Assemble TripPlan with CPP breakdown |
 | `get_alternative_flights` | Fine-tune: filtered flight alternatives |
@@ -160,6 +166,7 @@ travel-agent/
 ├── data/
 │   ├── transfer_partners.json      # 51 transfer partner relationships
 │   └── point_valuations.json       # TPG CPP valuations (27 programs)
+├── output/                         # Auto-saved booking guides (gitignored)
 └── src/travel_agent/
     ├── config.py                   # pydantic-settings — single env var source
     ├── main.py                     # CLI state machine
@@ -181,7 +188,7 @@ travel-agent/
 .venv/bin/mypy src/
 ```
 
-55 tests, mypy strict, Python 3.11+.
+118 tests, mypy strict, Python 3.11+.
 
 ---
 
@@ -202,5 +209,5 @@ travel-agent/
 - `.env` is in `.gitignore` — never committed
 - All secrets flow through `config.py` (pydantic-settings) — no scattered `os.getenv()` calls
 - User profile (`~/.config/travel-agent/profile.toml`) is outside the repo — never committed
-- Booking guides save to `~/Downloads/` — outside the repo directory
+- Booking guides auto-save to `output/` — gitignored, never committed
 - Amadeus sandbox is free; use sandbox credentials only in `.env`
