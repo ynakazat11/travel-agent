@@ -183,7 +183,12 @@ def main() -> None:
     if session.phase == SessionPhase.SEARCHING:
         console.print()
         with Status("[bold cyan]Searching for the best award options…[/bold cyan]", console=console) as status:
-            run_agent_turn(session, tool_executor, spinner_status=status)
+            run_agent_turn(
+                session,
+                tool_executor,
+                user_input="Preferences confirmed. Please search for the best award trip options now.",
+                spinner_status=status,
+            )
 
     # Loop: OPTIONS_PRESENTED → FINE_TUNING → FINALIZING
     while session.phase not in (SessionPhase.FINALIZING, SessionPhase.COMPLETE):
