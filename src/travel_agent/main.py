@@ -17,6 +17,7 @@ from travel_agent.clients.transfer import TransferPartnerDB
 from travel_agent.config import settings
 from travel_agent.display.booking_guide import render_booking_guide, save_booking_guide
 from travel_agent.display.prompts import (
+    prompt_confirm_preferences,
     prompt_fine_tune_menu,
     prompt_plan_selection,
     prompt_points_balances,
@@ -144,10 +145,50 @@ def main() -> None:
         with Status("[dim]Thinking…[/dim]", console=console) as status:
             run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
 
+    # --- Phase: CONFIRM_PREFERENCES ---
+    while session.phase == SessionPhase.CONFIRM_PREFERENCES:
+        answer = prompt_confirm_preferences(session.preferences)
+        if answer == "y":
+            session.advance_phase(SessionPhase.SEARCHING)
+        elif answer == "n":
+            session.advance_phase(SessionPhase.PREFERENCE_GATHERING)
+            console.print("\n[bold cyan]No problem — what would you like to change?[/bold cyan]\n")
+            while session.phase == SessionPhase.PREFERENCE_GATHERING:
+                try:
+                    user_input = console.input("[bold green]You:[/bold green] ")
+                except (EOFError, KeyboardInterrupt):
+                    console.print("\n[yellow]Goodbye![/yellow]")
+                    return
+                with Status("[dim]Thinking…[/dim]", console=console) as status:
+                    run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
+        elif answer == "edit":
+            try:
+                correction = console.input("[bold green]What should I change?[/bold green] ")
+            except (EOFError, KeyboardInterrupt):
+                console.print("\n[yellow]Goodbye![/yellow]")
+                return
+            with Status("[dim]Updating preferences…[/dim]", console=console) as status:
+                run_agent_turn(session, tool_executor, user_input=correction, spinner_status=status)
+            # Keep collecting input until the agent re-triggers confirmation
+            while session.phase == SessionPhase.CONFIRM_PREFERENCES:
+                try:
+                    user_input = console.input("[bold green]You:[/bold green] ")
+                except (EOFError, KeyboardInterrupt):
+                    console.print("\n[yellow]Goodbye![/yellow]")
+                    return
+                with Status("[dim]Thinking…[/dim]", console=console) as status:
+                    run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
+
     # --- Phase: SEARCHING ---
-    console.print()
-    with Status("[bold cyan]Searching for the best award options…[/bold cyan]", console=console) as status:
-        run_agent_turn(session, tool_executor, spinner_status=status)
+    if session.phase == SessionPhase.SEARCHING:
+        console.print()
+        with Status("[bold cyan]Searching for the best award options…[/bold cyan]", console=console) as status:
+            run_agent_turn(
+                session,
+                tool_executor,
+                user_input="Preferences confirmed. Please search for the best award trip options now.",
+                spinner_status=status,
+            )
 
     # Loop: OPTIONS_PRESENTED → FINE_TUNING → FINALIZING
     while session.phase not in (SessionPhase.FINALIZING, SessionPhase.COMPLETE):
@@ -183,6 +224,11 @@ def main() -> None:
 
             if choice == "5":
                 session.fine_tune_state.active = False
+                session.advance_phase(SessionPhase.OPTIONS_PRESENTED)
+                continue
+
+            if choice == "6":
+                _handle_free_text_feedback(session, tool_executor)
                 session.advance_phase(SessionPhase.OPTIONS_PRESENTED)
                 continue
 
@@ -245,6 +291,30 @@ def _offer_profile_save(session: ConversationSession, profile_path: Path) -> Non
     )
     saved_path = save_profile(profile, profile_path)
     console.print(f"[green]Profile saved to {saved_path}[/green]")
+
+
+def _handle_free_text_feedback(
+    session: ConversationSession, tool_executor: ToolExecutor
+) -> None:
+    """Multi-turn free-text chat loop during FINE_TUNING phase."""
+    console.print(
+        "\n[bold cyan]Tell me what you'd like to change. "
+        "Type 'done' when finished.[/bold cyan]\n"
+    )
+    while True:
+        try:
+            feedback = console.input("[bold green]Your feedback:[/bold green] ")
+        except (EOFError, KeyboardInterrupt):
+            break
+        if feedback.strip().lower() == "done":
+            break
+        with Status("[dim]Thinking…[/dim]", console=console) as status:
+            run_agent_turn(
+                session, tool_executor, user_input=feedback, spinner_status=status
+            )
+        console.print(
+            "\n[dim]Continue giving feedback, or type 'done' to return to menu.[/dim]"
+        )
 
 
 def _build_fine_tune_prompt(choice: str, plan: TripPlan) -> str:
