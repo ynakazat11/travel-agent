@@ -136,9 +136,22 @@ def render_booking_guide(plan: TripPlan) -> str:
     return md
 
 
+_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
+
+
 def save_booking_guide(md: str, path: str) -> None:
     """Save markdown booking guide to disk."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(md, encoding="utf-8")
     console.print(f"\n[green]Booking guide saved to:[/green] {path}")
+
+
+def auto_save_booking_guide(md: str, destination: str) -> Path:
+    """Always save booking guide to the project output/ directory."""
+    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"trip-guide-{destination}.md"
+    path = _OUTPUT_DIR / filename
+    path.write_text(md, encoding="utf-8")
+    console.print(f"\n[green]Booking guide saved to:[/green] {path}")
+    return path

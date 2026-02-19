@@ -67,9 +67,10 @@ class AmadeusClient:
         num_travelers: int = 1,
         currency: str = "USD",
         max_results: int = 5,
+        nonstop: bool = False,
     ) -> list[FlightOption]:
         if self._mock:
-            return _mock_flight_options(origin, destination, departure_date, return_date)
+            return _mock_flight_options(origin, destination, departure_date, return_date, nonstop=nonstop)
 
         params: dict[str, Any] = {
             "originLocationCode": origin,
@@ -79,7 +80,7 @@ class AmadeusClient:
             "adults": num_travelers,
             "currencyCode": currency,
             "max": max_results,
-            "nonStop": "false",
+            "nonStop": "true" if nonstop else "false",
         }
         data = self._get("/v2/shopping/flight-offers", params)
         return _parse_flight_offers(data.get("data", []))
@@ -90,12 +91,14 @@ class AmadeusClient:
         destination: str,
         dates: list[tuple[str, str]],
         num_travelers: int = 1,
+        nonstop: bool = False,
     ) -> list[FlightOption]:
         results: list[FlightOption] = []
         with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {
                 pool.submit(
-                    self.search_flights, origin, destination, dep, ret, num_travelers
+                    self.search_flights, origin, destination, dep, ret, num_travelers,
+                    nonstop=nonstop,
                 ): (dep, ret)
                 for dep, ret in dates
             }
@@ -127,6 +130,40 @@ class AmadeusClient:
             return []
 
         # Step 2: get offers for those hotels
+        offers_data = self._get(
+            "/v3/shopping/hotel-offers",
+            {
+                "hotelIds": ",".join(hotel_ids),
+                "checkInDate": check_in,
+                "checkOutDate": check_out,
+                "adults": num_travelers,
+                "currency": "USD",
+                "bestRateOnly": "true",
+            },
+        )
+        return _parse_hotel_offers(offers_data.get("data", [])[:max_results])
+
+    def search_hotels_by_geocode(
+        self,
+        latitude: float,
+        longitude: float,
+        check_in: str,
+        check_out: str,
+        num_travelers: int = 1,
+        radius_km: int = 30,
+        max_results: int = 5,
+    ) -> list[HotelOption]:
+        if self._mock:
+            return _mock_hotel_options_geocode(latitude, longitude, check_in, check_out)
+
+        hotel_data = self._get(
+            "/v1/reference-data/locations/hotels/by-geocode",
+            {"latitude": latitude, "longitude": longitude, "radius": radius_km, "radiusUnit": "KM"},
+        )
+        hotel_ids = [h["hotelId"] for h in hotel_data.get("data", [])[:20]]
+        if not hotel_ids:
+            return []
+
         offers_data = self._get(
             "/v3/shopping/hotel-offers",
             {
@@ -226,7 +263,8 @@ def _parse_hotel_offers(offers: list[dict[str, Any]]) -> list[HotelOption]:
 # ---------------------------------------------------------------------------
 
 def _mock_flight_options(
-    origin: str, destination: str, departure_date: str, return_date: str
+    origin: str, destination: str, departure_date: str, return_date: str,
+    nonstop: bool = False,
 ) -> list[FlightOption]:
     airline_programs = [
         (CurrencyProgram.united_mileageplus, Issuer.chase, "UA", 30000),
@@ -265,6 +303,56 @@ def _mock_flight_options(
                 amadeus_offer_id=f"mock-{code}-{departure_date}",
             )
         )
+
+    if not nonstop:
+        # Add a connecting flight via DEN
+        options.append(
+            FlightOption(
+                outbound_segments=[
+                    FlightSegment(
+                        origin=origin,
+                        destination="DEN",
+                        departure_time=f"{departure_date}T06:00:00",
+                        arrival_time=f"{departure_date}T09:00:00",
+                        airline="UA",
+                        flight_number="UA201",
+                    ),
+                    FlightSegment(
+                        origin="DEN",
+                        destination=destination,
+                        departure_time=f"{departure_date}T10:30:00",
+                        arrival_time=f"{departure_date}T12:30:00",
+                        airline="UA",
+                        flight_number="UA202",
+                    ),
+                ],
+                inbound_segments=[
+                    FlightSegment(
+                        origin=destination,
+                        destination="DEN",
+                        departure_time=f"{return_date}T13:00:00",
+                        arrival_time=f"{return_date}T15:00:00",
+                        airline="UA",
+                        flight_number="UA301",
+                    ),
+                    FlightSegment(
+                        origin="DEN",
+                        destination=origin,
+                        departure_time=f"{return_date}T16:30:00",
+                        arrival_time=f"{return_date}T20:30:00",
+                        airline="UA",
+                        flight_number="UA302",
+                    ),
+                ],
+                total_miles_required=22000,
+                program_to_book=CurrencyProgram.united_mileageplus,
+                source_issuer=Issuer.chase,
+                transfer_partner_used=CurrencyProgram.united_mileageplus.value,
+                cash_taxes_usd=Decimal("11.20"),
+                amadeus_offer_id=f"mock-UA-connect-{departure_date}",
+            )
+        )
+
     return options
 
 
@@ -287,6 +375,56 @@ def _mock_hotel_options(city_code: str, check_in: str, check_out: str) -> list[H
                 program_to_book=program,
                 source_issuer=issuer,
                 amadeus_hotel_id=f"mock-{name.lower().replace(' ', '-')}",
+            )
+        )
+    return options
+
+
+# ---------------------------------------------------------------------------
+# Geocode mock helpers
+# ---------------------------------------------------------------------------
+
+_KNOWN_GEOCODE_LOCATIONS: list[tuple[float, float, float, str]] = [
+    # (lat, lon, tolerance_deg, label)
+    (34.87, -111.76, 0.5, "Sedona"),
+    (38.30, -122.30, 0.5, "Napa Valley"),
+    (36.15, -115.15, 0.3, "Las Vegas"),
+    (21.31, -157.86, 0.3, "Honolulu"),
+    (48.86, 2.35, 0.3, "Paris"),
+    (36.21, -81.68, 0.5, "Blue Ridge"),
+]
+
+
+def _geocode_label(latitude: float, longitude: float) -> str:
+    """Map lat/long to a human-readable location label for mock data."""
+    for lat, lon, tol, label in _KNOWN_GEOCODE_LOCATIONS:
+        if abs(latitude - lat) <= tol and abs(longitude - lon) <= tol:
+            return label
+    return f"({latitude:.1f}, {longitude:.1f})"
+
+
+def _mock_hotel_options_geocode(
+    latitude: float, longitude: float, check_in: str, check_out: str,
+) -> list[HotelOption]:
+    location = _geocode_label(latitude, longitude)
+    hotels = [
+        (f"Resort & Spa {location}", "Independent", CurrencyProgram.world_of_hyatt, Issuer.chase, 4.5, 25000),
+        (f"Hilton {location}", "Hilton", CurrencyProgram.hilton_honors, Issuer.amex, 4.0, 45000),
+        (f"Courtyard {location}", "Marriott", CurrencyProgram.marriott_bonvoy, Issuer.amex, 3.5, 30000),
+    ]
+    options = []
+    for name, chain, program, issuer, stars, points in hotels:
+        options.append(
+            HotelOption(
+                hotel_name=name,
+                hotel_chain=chain,
+                star_rating=stars,
+                check_in=check_in,
+                check_out=check_out,
+                total_points_required=points,
+                program_to_book=program,
+                source_issuer=issuer,
+                amadeus_hotel_id=f"mock-geocode-{name.lower().replace(' ', '-')}",
             )
         )
     return options

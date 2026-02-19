@@ -33,6 +33,7 @@ class TravelPreferences(BaseModel):
     num_travelers: int = 1
     flight_time_preference: FlightTimePreference = FlightTimePreference.any
     accommodation_tier: AccommodationTier = AccommodationTier.midrange
+    nonstop_preferred: bool = False
     origin_airport: str = ""         # IATA airport code
 
     @computed_field  # type: ignore[prop-decorator]

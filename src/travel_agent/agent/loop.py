@@ -1,6 +1,7 @@
 """Core agentic loop: multi-turn Claude API with tool dispatch."""
 
 import json
+import os
 from typing import Any
 
 import anthropic
@@ -49,13 +50,17 @@ def run_agent_turn(
         if spinner_status:
             spinner_status.update(f"[dim]Claude thinking… (round {rounds})[/dim]")
 
+        _model = os.getenv("EVAL_MODEL_OVERRIDE", "claude-sonnet-4-5-20250929")
         response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model=_model,
             max_tokens=4096,
             system=build_system_prompt(session),
             messages=session.conversation_history,  # type: ignore[arg-type]
             tools=TOOL_SCHEMAS,  # type: ignore[arg-type]
         )
+        if _log := os.getenv("EVAL_TOKEN_LOG"):
+            with open(_log, "a") as _f:
+                _f.write(json.dumps({"input": response.usage.input_tokens, "output": response.usage.output_tokens, "model": _model}) + "\n")
 
         # Print any text content immediately
         for block in response.content:
@@ -131,6 +136,7 @@ def _handle_phase_transition(
             points_strategy=PointsStrategy(
                 tool_input.get("points_strategy", "") or existing.points_strategy.value
             ),
+            nonstop_preferred=tool_input.get("nonstop_preferred", False) or existing.nonstop_preferred,
         )
         session.preferences = prefs
         session.advance_phase(SessionPhase.CONFIRM_PREFERENCES)

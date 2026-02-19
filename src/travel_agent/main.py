@@ -15,14 +15,15 @@ from travel_agent.agent.tools import ToolExecutor
 from travel_agent.clients.amadeus import AmadeusClient
 from travel_agent.clients.transfer import TransferPartnerDB
 from travel_agent.config import settings
-from travel_agent.display.booking_guide import render_booking_guide, save_booking_guide
+from travel_agent.display.booking_guide import auto_save_booking_guide, render_booking_guide
 from travel_agent.display.prompts import (
+    prompt_agent_suggestions,
     prompt_confirm_preferences,
     prompt_fine_tune_menu,
     prompt_plan_selection,
     prompt_points_balances,
+    prompt_post_search,
     prompt_profile_setup,
-    prompt_save_guide,
     show_loaded_profile,
 )
 from travel_agent.display.tables import (
@@ -44,6 +45,22 @@ from travel_agent.models.session import ConversationSession, SessionPhase
 from travel_agent.models.travel import TripPlan
 
 console = Console()
+
+
+def _last_assistant_has_questions(session: ConversationSession) -> bool:
+    """Check if the most recent assistant message contains question marks."""
+    for msg in reversed(session.conversation_history):
+        if msg["role"] == "assistant":
+            content = msg["content"]
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        if "?" in block.get("text", ""):
+                            return True
+            elif isinstance(content, str):
+                return "?" in content
+            return False
+    return False
 
 
 def _parse_args() -> argparse.Namespace:
@@ -123,6 +140,7 @@ def main() -> None:
             flight_time_preference=p.flight_time_preference,
             accommodation_tier=p.accommodation_tier,
             points_strategy=p.points_strategy,
+            nonstop_preferred=p.nonstop_preferred,
         )
 
     session.advance_phase(SessionPhase.PREFERENCE_GATHERING)
@@ -144,6 +162,21 @@ def main() -> None:
 
         with Status("[dim]Thinking…[/dim]", console=console) as status:
             run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
+
+    # --- Handle agent questions before confirmation table ---
+    while session.phase == SessionPhase.CONFIRM_PREFERENCES and _last_assistant_has_questions(session):
+        choice = prompt_agent_suggestions()
+        if choice != "r":
+            break
+        session.advance_phase(SessionPhase.PREFERENCE_GATHERING)
+        while session.phase == SessionPhase.PREFERENCE_GATHERING:
+            try:
+                user_input = console.input("[bold green]You:[/bold green] ")
+            except (EOFError, KeyboardInterrupt):
+                console.print("\n[yellow]Goodbye![/yellow]")
+                return
+            with Status("[dim]Thinking…[/dim]", console=console) as status:
+                run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
 
     # --- Phase: CONFIRM_PREFERENCES ---
     while session.phase == SessionPhase.CONFIRM_PREFERENCES:
@@ -189,6 +222,22 @@ def main() -> None:
                 user_input="Preferences confirmed. Please search for the best award trip options now.",
                 spinner_status=status,
             )
+
+    # Post-search interaction: let user respond to agent before showing plans
+    if session.phase == SessionPhase.OPTIONS_PRESENTED and session.current_trip_plans:
+        choice = prompt_post_search()
+        if choice == "r":
+            console.print("\n[dim]Type your response. Type 'done' to view plans.[/dim]\n")
+            while True:
+                try:
+                    user_input = console.input("[bold green]You:[/bold green] ")
+                except (EOFError, KeyboardInterrupt):
+                    console.print("\n[yellow]Goodbye![/yellow]")
+                    return
+                if user_input.strip().lower() == "done":
+                    break
+                with Status("[dim]Thinking…[/dim]", console=console) as status:
+                    run_agent_turn(session, tool_executor, user_input=user_input, spinner_status=status)
 
     # Loop: OPTIONS_PRESENTED → FINE_TUNING → FINALIZING
     while session.phase not in (SessionPhase.FINALIZING, SessionPhase.COMPLETE):
@@ -250,9 +299,7 @@ def main() -> None:
         md = render_booking_guide(plan)
 
         dest = plan.flight.outbound_segments[-1].destination if plan.flight.outbound_segments else "trip"
-        save_path = prompt_save_guide(dest.lower())
-        if save_path:
-            save_booking_guide(md, save_path)
+        auto_save_booking_guide(md, dest.lower())
 
         session.advance_phase(SessionPhase.COMPLETE)
 
@@ -286,6 +333,7 @@ def _offer_profile_save(session: ConversationSession, profile_path: Path) -> Non
             flight_time_preference=p.flight_time_preference,
             accommodation_tier=p.accommodation_tier,
             points_strategy=p.points_strategy,
+            nonstop_preferred=p.nonstop_preferred,
         ),
         points=ProfilePoints(**pts_map),
     )

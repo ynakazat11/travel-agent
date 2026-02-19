@@ -25,6 +25,7 @@ class ProfilePreferences(BaseModel):
     flight_time_preference: FlightTimePreference = FlightTimePreference.any
     accommodation_tier: AccommodationTier = AccommodationTier.midrange
     points_strategy: PointsStrategy = PointsStrategy.mixed_ok
+    nonstop_preferred: bool = False
 
 
 class ProfilePoints(BaseModel):
@@ -105,6 +106,7 @@ num_travelers = {p.num_travelers}
 flight_time_preference = "{p.flight_time_preference.value}"    # morning | afternoon | evening | any
 accommodation_tier = "{p.accommodation_tier.value}"        # budget | midrange | upscale | luxury
 points_strategy = "{p.points_strategy.value}"          # POINTS_ONLY | MIXED_OK
+nonstop_preferred = {str(p.nonstop_preferred).lower()}
 
 [points]
 chase = {pt.chase}

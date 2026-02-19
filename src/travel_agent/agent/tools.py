@@ -36,20 +36,36 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "departure_date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "return_date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "num_travelers": {"type": "integer", "description": "Number of adult travelers", "default": 1},
+                "nonstop": {"type": "boolean", "description": "If true, only return nonstop flights", "default": False},
             },
             "required": ["origin", "destination", "departure_date", "return_date"],
         },
     },
     {
         "name": "search_hotels",
-        "description": "Search for hotel options via Amadeus. Returns HotelOption list.",
+        "description": (
+            "Search for hotel options via Amadeus. Returns HotelOption list. "
+            "Accepts either city_code (IATA) or latitude+longitude for geocode-based search. "
+            "Use latitude/longitude when the destination has no IATA code (e.g., Sedona, Napa Valley)."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "city_code": {"type": "string", "description": "IATA city code, e.g. 'HNL'"},
+                "city_code": {
+                    "type": "string",
+                    "description": "IATA city code, e.g. 'HNL'. Optional if latitude/longitude provided.",
+                },
                 "check_in": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "check_out": {"type": "string", "description": "ISO date YYYY-MM-DD"},
                 "num_travelers": {"type": "integer", "description": "Number of travelers", "default": 1},
+                "latitude": {
+                    "type": "number",
+                    "description": "Latitude for geocode-based search. Use when the destination has no IATA code (e.g., Sedona at 34.87).",
+                },
+                "longitude": {
+                    "type": "number",
+                    "description": "Longitude for geocode-based search. Use with latitude (e.g., Sedona at -111.76).",
+                },
                 "location_query": {
                     "type": "string",
                     "description": (
@@ -58,7 +74,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     ),
                 },
             },
-            "required": ["city_code", "check_in", "check_out"],
+            "required": ["check_in", "check_out"],
         },
     },
     {
@@ -114,6 +130,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 },
                 "preferred_airline": {"type": "string", "description": "IATA airline code or empty for any"},
                 "num_travelers": {"type": "integer", "default": 1},
+                "nonstop": {"type": "boolean", "description": "If true, only return nonstop flights", "default": False},
             },
             "required": ["origin", "destination", "departure_date", "return_date"],
         },
@@ -136,6 +153,27 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "num_travelers": {"type": "integer", "default": 1},
             },
             "required": ["city_code", "check_in", "check_out"],
+        },
+    },
+    {
+        "name": "web_search_hotels",
+        "description": (
+            "Fallback web search when search_hotels results don't match the user's accommodation tier. "
+            "Returns cash-booking suggestions from popular travel sites."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "destination": {"type": "string", "description": "Destination name, e.g. 'Sedona, AZ'"},
+                "check_in": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+                "check_out": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+                "tier": {
+                    "type": "string",
+                    "enum": ["budget", "midrange", "upscale", "luxury"],
+                    "description": "Desired accommodation tier",
+                },
+            },
+            "required": ["destination", "check_in", "check_out"],
         },
     },
     {
@@ -172,6 +210,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     "type": "string",
                     "enum": ["POINTS_ONLY", "MIXED_OK"],
                     "default": "MIXED_OK",
+                },
+                "nonstop_preferred": {
+                    "type": "boolean",
+                    "description": "Whether the user prefers nonstop (direct) flights",
+                    "default": False,
                 },
             },
             "required": [
@@ -244,22 +287,33 @@ class ToolExecutor:
         departure_date: str,
         return_date: str,
         num_travelers: int = 1,
+        nonstop: bool = False,
     ) -> list[dict[str, Any]]:
         flights = self._amadeus.search_flights(
-            origin, destination, departure_date, return_date, num_travelers
+            origin, destination, departure_date, return_date, num_travelers,
+            nonstop=nonstop,
         )
         self._last_flights = flights
         return [_flight_to_dict(i, f) for i, f in enumerate(flights)]
 
     def _tool_search_hotels(
         self,
-        city_code: str,
         check_in: str,
         check_out: str,
+        city_code: str = "",
         num_travelers: int = 1,
+        latitude: float | None = None,
+        longitude: float | None = None,
         location_query: str = "",
     ) -> list[dict[str, Any]]:
-        hotels = self._amadeus.search_hotels(city_code, check_in, check_out, num_travelers)
+        if latitude is not None and longitude is not None:
+            hotels = self._amadeus.search_hotels_by_geocode(
+                latitude, longitude, check_in, check_out, num_travelers,
+            )
+        elif city_code:
+            hotels = self._amadeus.search_hotels(city_code, check_in, check_out, num_travelers)
+        else:
+            return [{"error": "Provide either city_code or latitude+longitude"}]
         self._last_hotels = hotels
         results = [_hotel_to_dict(i, h) for i, h in enumerate(hotels)]
         if location_query:
@@ -331,9 +385,11 @@ class ToolExecutor:
         preferred_time: str = "any",
         preferred_airline: str = "",
         num_travelers: int = 1,
+        nonstop: bool = False,
     ) -> list[dict[str, Any]]:
         flights = self._amadeus.search_flights(
-            origin, destination, departure_date, return_date, num_travelers, max_results=8
+            origin, destination, departure_date, return_date, num_travelers,
+            max_results=8, nonstop=nonstop,
         )
         if preferred_time != "any":
             flights = _filter_by_time(flights, preferred_time)
@@ -362,6 +418,24 @@ class ToolExecutor:
             hotels = [h for h in hotels if chain_preference.lower() in h.hotel_chain.lower()]
         self._last_hotels = hotels
         return [_hotel_to_dict(i, h) for i, h in enumerate(hotels)]
+
+    def _tool_web_search_hotels(
+        self,
+        destination: str,
+        check_in: str,
+        check_out: str,
+        tier: str = "midrange",
+    ) -> dict[str, Any]:
+        if self._amadeus._mock:
+            return _mock_web_search_hotels(destination, check_in, check_out, tier)
+        return {
+            "source": "web_search",
+            "results": [],
+            "note": (
+                "Live web search is not configured. "
+                "Try searching manually on Google Hotels, Booking.com, or the hotel's direct website."
+            ),
+        }
 
     def _tool_mark_preferences_complete(self, **kwargs: Any) -> dict[str, Any]:
         # The phase transition is handled by the loop — just ack here
@@ -426,6 +500,59 @@ def _trip_plan_to_dict(plan: TripPlan) -> dict[str, Any]:
         "total_cash_usd": str(plan.total_cash_usd),
         "summary_label": plan.summary_label,
         "blended_cpp": str(plan.blended_cpp),
+    }
+
+
+_WEB_SEARCH_MOCK_DATA: dict[str, dict[str, list[dict[str, Any]]]] = {
+    "sedona": {
+        "luxury": [
+            {"name": "Enchantment Resort", "nightly_rate_usd": 650, "star_rating": 5.0, "url": "https://enchantmentresort.com"},
+            {"name": "L'Auberge de Sedona", "nightly_rate_usd": 550, "star_rating": 5.0, "url": "https://lauberge.com"},
+            {"name": "Ambiente, A Landscape Hotel", "nightly_rate_usd": 900, "star_rating": 5.0, "url": "https://ambientesedona.com"},
+        ],
+        "upscale": [
+            {"name": "Hilton Sedona Resort at Bell Rock", "nightly_rate_usd": 300, "star_rating": 4.0, "url": "https://hilton.com"},
+            {"name": "The Wilde Resort & Spa", "nightly_rate_usd": 350, "star_rating": 4.5, "url": "https://thewildesedona.com"},
+        ],
+    },
+    "napa": {
+        "luxury": [
+            {"name": "Meadowood Napa Valley", "nightly_rate_usd": 800, "star_rating": 5.0, "url": "https://meadowood.com"},
+            {"name": "Calistoga Ranch", "nightly_rate_usd": 700, "star_rating": 5.0, "url": "https://calistogaranch.com"},
+        ],
+    },
+}
+
+
+def _mock_web_search_hotels(
+    destination: str, check_in: str, check_out: str, tier: str,
+) -> dict[str, Any]:
+    dest_lower = destination.lower()
+    for key, tiers in _WEB_SEARCH_MOCK_DATA.items():
+        if key in dest_lower:
+            results = tiers.get(tier, tiers.get("luxury", []))
+            return {
+                "source": "web_search",
+                "results": [
+                    {**r, "check_in": check_in, "check_out": check_out}
+                    for r in results
+                ],
+                "note": "These are cash-booking options found via web search, not points-bookable.",
+            }
+    # Generic fallback for unknown destinations
+    return {
+        "source": "web_search",
+        "results": [
+            {
+                "name": f"Top {tier.title()} Hotel in {destination}",
+                "nightly_rate_usd": {"budget": 80, "midrange": 150, "upscale": 300, "luxury": 500}.get(tier, 200),
+                "star_rating": {"budget": 2.0, "midrange": 3.0, "upscale": 4.0, "luxury": 5.0}.get(tier, 3.0),
+                "check_in": check_in,
+                "check_out": check_out,
+                "url": "",
+            }
+        ],
+        "note": f"Generic {tier} suggestion for {destination}. Search Google Hotels or Booking.com for specific options.",
     }
 
 

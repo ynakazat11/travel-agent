@@ -184,6 +184,13 @@ def prompt_profile_setup(existing: UserProfile | None = None) -> UserProfile:
         default=prefs.accommodation_tier.value,
     )
 
+    nonstop_raw = Prompt.ask(
+        "  Prefer nonstop flights?",
+        choices=["yes", "no"],
+        default="yes" if prefs.nonstop_preferred else "no",
+    )
+    nonstop_pref = nonstop_raw.lower() == "yes"
+
     strategy = Prompt.ask(
         "  Points strategy",
         choices=["POINTS_ONLY", "MIXED_OK"],
@@ -223,6 +230,7 @@ def prompt_profile_setup(existing: UserProfile | None = None) -> UserProfile:
             flight_time_preference=FlightTimePreference(flight_time),
             accommodation_tier=AccommodationTier(tier),
             points_strategy=PointsStrategy(strategy),
+            nonstop_preferred=nonstop_pref,
         ),
         points=ProfilePoints(**points_values),
     )
@@ -255,6 +263,7 @@ def show_loaded_profile(
     pref_table.add_row("Travelers", str(prefs.num_travelers))
     pref_table.add_row("Flight Time", prefs.flight_time_preference.value)
     pref_table.add_row("Accommodation", prefs.accommodation_tier.value)
+    pref_table.add_row("Nonstop Preferred", "Yes" if prefs.nonstop_preferred else "No")
     pref_table.add_row("Points Strategy", prefs.points_strategy.value)
     console.print(pref_table)
 
@@ -297,6 +306,7 @@ def prompt_confirm_preferences(prefs: TravelPreferences) -> str:
     table.add_row("Travelers", str(prefs.num_travelers))
     table.add_row("Flight Time", prefs.flight_time_preference.value)
     table.add_row("Accommodation", prefs.accommodation_tier.value)
+    table.add_row("Nonstop Preferred", "Yes" if prefs.nonstop_preferred else "No")
     table.add_row("Points Strategy", prefs.points_strategy.value)
 
     console.print()
@@ -312,6 +322,30 @@ def prompt_confirm_preferences(prefs: TravelPreferences) -> str:
     if normalized in ("e", "edit"):
         return "edit"
     return normalized
+
+
+def prompt_agent_suggestions() -> str:
+    """When the agent had unanswered questions, let the user respond or continue."""
+    console.print()
+    raw = Prompt.ask(
+        "[bold]The agent had suggestions above. Respond, or continue to review?[/bold]\n"
+        "  [C]ontinue  [R]espond",
+        choices=["c", "C", "r", "R"],
+        default="c",
+    )
+    return raw.lower()
+
+
+def prompt_post_search() -> str:
+    """After search, ask user whether to view plans or respond to agent first."""
+    console.print()
+    raw = Prompt.ask(
+        "[bold]View trip plans, or respond to the agent's suggestions first?[/bold]\n"
+        "  [V]iew plans  [R]espond first",
+        choices=["v", "V", "r", "R"],
+        default="v",
+    )
+    return raw.lower()
 
 
 def prompt_save_guide(destination: str) -> str | None:
